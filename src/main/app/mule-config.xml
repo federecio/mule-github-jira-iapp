@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:spring="http://www.springframework.org/schema/beans"
+      xmlns:file="http://www.mulesoft.org/schema/mule/file"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:jdbc="http://www.mulesoft.org/schema/mule/jdbc"
+      xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+      xmlns:client="http://www.mulesoft.org/schema/mule/client"
+      xmlns:cxf="http://www.mulesoft.org/schema/mule/cxf"
+      xmlns:management="http://www.mulesoft.org/schema/mule/management"
+      xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+      xmlns:sxc="http://www.mulesoft.org/schema/mule/sxc"
+      xmlns:mule-xml="http://www.mulesoft.org/schema/mule/xml"
+      xmlns:github="http://www.mulesoft.org/schema/mule/github"
+      xmlns:jira="http://www.mulesoft.org/schema/mule/jira"
+      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/3.2/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/3.2/mule-http.xsd
+
+        http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/3.2/mule-vm.xsd
+        http://www.mulesoft.org/schema/mule/client http://www.mulesoft.org/schema/mule/client/3.2/mule-client.xsd
+        http://www.mulesoft.org/schema/mule/cxf http://www.mulesoft.org/schema/mule/cxf/3.2/mule-cxf.xsd
+        http://www.mulesoft.org/schema/mule/management http://www.mulesoft.org/schema/mule/management/3.2/mule-management.xsd
+        http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/3.2/mule-scripting.xsd
+        http://www.mulesoft.org/schema/mule/sxc http://www.mulesoft.org/schema/mule/sxc/3.2/mule-sxc.xsd
+        http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/3.2/mule-xml.xsd
+        http://www.mulesoft.org/schema/mule/github http://www.mulesoft.org/schema/mule/github/1.0/mule-github.xsd
+        http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jira/1.0/mule-jira.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+    <description>
+    
+    </description>
+
+    <github:config defaultUser="evangelina"/>
+    <jira:config username="federico.recio" password="123" address="localhost"/>
+
+    <flow name="main">
+        <poll frequency="5000"/>
+        <github:get-issues-creted-after repository="github-connector" minutes="5"/>
+        <logger message="#[payload]"/>
+        <collection-splitter/>
+        <jira:create-issue summary="#[payload.title]" project="hackathon" type="bug" description="#[payload.body]"/>
+        <logger message="#[payload]"/>
+    </flow>
+</mule>
