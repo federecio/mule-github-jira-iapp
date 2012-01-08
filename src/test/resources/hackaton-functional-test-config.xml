@@ -10,7 +10,7 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
     <github:config name="Github" user="evangelina" password="mulesoft1" doc:name="Github"/>
     <jira:config name="Jira" username="federico.recio" password="123" address="http://localhost:8080/rpc/soap/jirasoapservice-v2" doc:name="Jira"/>
     <flow name="Github2Jira" doc:name="Github2Jira">
-        <poll frequency="2000000">
+        <poll frequency="10000">
             <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
         </poll>
         <logger message="Retrieved issues: #[payload]" level="WARN" doc:name="Logger"/>
@@ -38,7 +38,7 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         </choice>
     </flow>
     <flow name="Jira2GitHub" doc:name="Jira2GitHub">
-        <poll frequency="20000">
+        <poll frequency="10000">
             <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null" maxNumResults="1000" doc:name="Jira"/>
         </poll>
         <collection-splitter doc:name="Collection Splitter"/>
@@ -47,7 +47,8 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         </message-properties-transformer>
         <github:create-issue config-ref="Github" body="#[groovy:payload.getDescription()]" repository="github-connector" title="#[groovy:payload.getSummary()]" doc:name="Github"/>
         <logger message="New GitHub issue created: #[payload]" level="WARN" doc:name="Logger"/>
-        <jira:update-issue-single-value-fields config-ref="Jira" issueKey="#[variable:jiraIssueKey]" doc:name="Jira">
+        <logger message="Updating Jira issue: Jira Key #[groovy:message.getInvocationProperty('jiraIssueKey')] with GitHub issue ##[groovy:payload.getNumber()]" level="WARN" />
+        <jira:update-issue-single-value-fields config-ref="Jira" issueKey="#[groovy:message.getInvocationProperty('jiraIssueKey')]" doc:name="Jira">
             <jira:fields>
                 <jira:field key="customfield_10000">#[groovy:payload.getNumber()]</jira:field>
             </jira:fields>
