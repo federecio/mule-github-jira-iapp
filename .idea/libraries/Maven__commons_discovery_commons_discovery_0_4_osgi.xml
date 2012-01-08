@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: commons-discovery:commons-discovery:0.4-osgi">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/commons-discovery/commons-discovery/0.4-osgi/commons-discovery-0.4-osgi.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/commons-discovery/commons-discovery/0.4-osgi/commons-discovery-0.4-osgi-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/commons-discovery/commons-discovery/0.4-osgi/commons-discovery-0.4-osgi-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

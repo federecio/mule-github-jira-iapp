@@ -85,4 +85,38 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
             </otherwise>
         </choice>
     </flow>
+
+    <flow name="Comments-Jira2GitHub" doc:name="Comments-Jira2GitHub">
+        <poll frequency="10000">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON'" maxNumResults="1000" doc:name="Jira"/>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <message-properties-transformer scope="invocation" doc:name="Message Properties">
+            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getCustomFieldValues()[0].getValues()[0]]"/>
+        </message-properties-transformer>
+        <jira:get-comments config-ref="Jira" issueKey="#[groovy:payload.getKey()]"/>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <choice doc:name="Choice">
+            <when expression="payload.getCreated().getTime().after(new java.util.Date(System.currentTimeMillis() - 10 * 1000 * 60))" evaluator="groovy">
+                <processor-chain>
+                    <message-properties-transformer scope="invocation" doc:name="Message Properties">
+                        <add-message-property key="commentBody" value="#[groovy:payload.getBody()]"/>
+                    </message-properties-transformer>
+
+                    <github:get-issue issueId="#[groovy:message.getInvocationProperty('githubIssueNumber')]"
+                                      config-ref="Github" repository="github-connector"/>
+
+                    <github:create-comment user="evangelina" config-ref="Github" issueId="#[groovy:payload.getNumber()]"
+                                           comment="#[groovy:message.getInvocationProperty('commentBody')]"
+                                           repository="github-connector"/>
+                </processor-chain>
+            </when>
+            <otherwise>
+                <processor-chain>
+                    <logger message="No new comments in GitHub" level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
+        </choice>
+    </flow>
+
 </mule>
