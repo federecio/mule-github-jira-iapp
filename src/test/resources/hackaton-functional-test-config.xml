@@ -10,7 +10,7 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
     <github:config name="Github" user="evangelina" password="mulesoft1" doc:name="Github"/>
     <jira:config name="Jira" username="federico.recio" password="123" address="http://localhost:8080/rpc/soap/jirasoapservice-v2" doc:name="Jira"/>
     <flow name="Issues-Github2Jira" doc:name="Issues-Github2Jira">
-        <poll frequency="10000">
+        <poll frequency="20000">
             <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
         </poll>
         <collection-splitter doc:name="Collection Splitter"/>
@@ -39,7 +39,7 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         </choice>
     </flow>
     <flow name="Issues-Jira2GitHub" doc:name="Issues-Jira2GitHub">
-        <poll frequency="10000">
+        <poll frequency="20000">
             <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null" maxNumResults="1000" doc:name="Jira"/>
         </poll>
         <collection-splitter doc:name="Collection Splitter"/>
@@ -58,8 +58,8 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         <logger message="Jira #[groovy:message.getInvocationProperty('jiraIssueKey')] -&gt; GitHub issue ##[groovy:message.getInvocationProperty('githubIssueNumber')]" level="INFO" doc:name="Logger"/>
     </flow>
     <flow name="Comments-GitHub2Jira" doc:name="Comments-GitHub2Jira">
-        <poll frequency="10000">
-            <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
+        <poll frequency="20000">
+            <github:get-issues-creted-after config-ref="Github" repository="github-connector" minutes="1" doc:name="Github"/>
         </poll>
         <collection-splitter doc:name="Collection Splitter"/>
         <message-properties-transformer scope="invocation" doc:name="Message Properties">
@@ -68,14 +68,16 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         <github:get-comments config-ref="Github" issueId="#[groovy:payload.getNumber()]" repository="github-connector" doc:name="Github"/>
         <collection-splitter doc:name="Collection Splitter"/>
         <choice doc:name="Choice">
-            <when expression="payload.getCreatedAt().after(new java.util.Date(System.currentTimeMillis() - 10 * 1000 * 60))" evaluator="groovy">
+            <when expression="!payload.getBody().endsWith('synchronized by Jira2Github iApp')" evaluator="groovy">
                 <processor-chain>
                     <message-properties-transformer scope="invocation" doc:name="Message Properties">
                         <add-message-property key="commentBody" value="#[groovy:payload.getBody()]"/>
+                        <add-message-property key="commentId" value="#[groovy:payload.getId()]"/>
                     </message-properties-transformer>
                     <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:message.getInvocationProperty('githubIssueNumber')]" maxNumResults="1000" doc:name="Jira"/>
                     <collection-splitter doc:name="Collection Splitter"/>
-                    <jira:add-comment config-ref="Jira" commentAuthor="federico.recio" commentBody="#[groovy:message.getInvocationProperty('commentBody')]" issueKey="#[groovy:payload.getKey()]" doc:name="Jira"/>
+                    <jira:add-comment config-ref="Jira" commentAuthor="federico.recio" commentBody="Comment from GitHub: #[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp" issueKey="#[groovy:payload.getKey()]" doc:name="Jira"/>
+                    <github:edit-comment repository="github-connector" commentId="#[groovy:message.getInvocationProperty('commentId')]" body="#[groovy:message.getInvocationProperty('commentBody')]  / synchronized by Jira2Github iApp" />
                 </processor-chain>
             </when>
             <otherwise>
