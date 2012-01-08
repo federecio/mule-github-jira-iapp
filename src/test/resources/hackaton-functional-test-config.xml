@@ -4,7 +4,7 @@
 http://www.mulesoft.org/schema/mule/github http://www.mulesoft.org/schema/mule/github/1.0/mule-github.xsd 
 http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jira/2.0/mule-jira.xsd 
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd 
-http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/3.2/mule.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
 http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd ">
     <github:config name="Github" user="evangelina" password="mulesoft1" doc:name="Github"/>
@@ -13,7 +13,6 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         <poll frequency="10000">
             <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
         </poll>
-        <logger message="Retrieved issues: #[payload]" level="WARN" doc:name="Logger"/>
         <collection-splitter doc:name="Collection Splitter"/>
         <enricher target="#[variable:matchingJiraIssues]" doc:name="Message Enricher">
             <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()]" maxNumResults="1000" doc:name="Jira"/>
@@ -21,18 +20,20 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         <choice doc:name="Choice">
             <when expression="message.getInvocationProperty('matchingJiraIssues').isEmpty()" evaluator="groovy">
                 <processor-chain>
-                    <logger message="Creating Jira issue for GitHub issue ##[groovy:payload.getNumber()]..." level="WARN" doc:name="Logger"/>
+			        <message-properties-transformer scope="invocation" doc:name="Message Properties">
+			            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
+			        </message-properties-transformer>
                     <jira:create-issue-single-value-fields config-ref="Jira" summary="#[groovy:payload.getTitle()]" description="#[groovy:payload.getBody()]" project="HACKATHON" type="1" doc:name="Jira">
                         <jira:custom-fields>
                             <jira:custom-field key="customfield_10000">#[groovy:payload.getNumber()]</jira:custom-field>
                         </jira:custom-fields>
                     </jira:create-issue-single-value-fields>
-                    <logger message="Created Jira isse #[groovy:payload.getKey()] " level="INFO" doc:name="Logger"/>
+                    <logger message="Github ##[groovy:message.getInvocationProperty('githubIssueNumber')] -> Jira #[groovy:payload.getKey()] " level="INFO" doc:name="Logger"/>
                 </processor-chain>
             </when>
             <otherwise>
                 <processor-chain>
-                    <logger level="DEBUG" doc:name="Logger"/>
+                    <logger message="No new updates in GitHub" level="DEBUG" doc:name="Logger"/>
                 </processor-chain>
             </otherwise>
         </choice>
@@ -46,12 +47,14 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
             <add-message-property key="jiraIssueKey" value="#[groovy:payload.getKey()]"/>
         </message-properties-transformer>
         <github:create-issue config-ref="Github" body="#[groovy:payload.getDescription()]" repository="github-connector" title="#[groovy:payload.getSummary()]" doc:name="Github"/>
-        <logger message="New GitHub issue created: #[payload]" level="WARN" doc:name="Logger"/>
-        <logger message="Updating Jira issue: Jira Key #[groovy:message.getInvocationProperty('jiraIssueKey')] with GitHub issue ##[groovy:payload.getNumber()]" level="WARN" />
+        <message-properties-transformer scope="invocation" doc:name="Message Properties">
+            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
+        </message-properties-transformer>   
         <jira:update-issue-single-value-fields config-ref="Jira" issueKey="#[groovy:message.getInvocationProperty('jiraIssueKey')]" doc:name="Jira">
             <jira:fields>
                 <jira:field key="customfield_10000">#[groovy:payload.getNumber()]</jira:field>
             </jira:fields>
         </jira:update-issue-single-value-fields>
+        <logger message="Jira #[groovy:message.getInvocationProperty('jiraIssueKey')] -> GitHub issue ##[groovy:message.getInvocationProperty('githubIssueNumber')]" level="INFO" />
     </flow>
 </mule>
