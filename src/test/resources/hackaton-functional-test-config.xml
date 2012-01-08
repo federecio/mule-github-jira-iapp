@@ -1,67 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns="http://www.mulesoft.org/schema/mule/core"
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xmlns:http="http://www.mulesoft.org/schema/mule/http"
-      xmlns:github="http://www.mulesoft.org/schema/mule/github"
-      xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo"
-      xmlns:jira="http://www.mulesoft.org/schema/mule/jira"
-      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/3.2/mule.xsd
-        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/3.2/mule-http.xsd
-        http://www.mulesoft.org/schema/mule/github http://www.mulesoft.org/schema/mule/github/1.0/mule-github.xsd
-        http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/2.0/mule-mongo.xsd
-        http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jira/2.0/mule-jira.xsd
-     ">
 
-    <description>
-
-    </description>
-
-    <github:config user="evangelina" password="mulesoft1" defaultUser="evangelina"/>
-    <jira:config username="federico.recio" password="123" address="http://localhost:8080/rpc/soap/jirasoapservice-v2"/>
-    <!--<jira:config username="eva" password="123" address="http://localhost:8080/rpc/soap/jirasoapservice-v2"/>-->
-
-    <flow name="GitHub2Jira">
-        <poll frequency="5000">
-            <github:get-issues-creted-after repository="github-connector" minutes="1000"/>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:github="http://www.mulesoft.org/schema/mule/github" xmlns:jira="http://www.mulesoft.org/schema/mule/jira" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="CE-3.2.1" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/github http://www.mulesoft.org/schema/mule/github/1.0/mule-github.xsd 
+http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jira/2.0/mule-jira.xsd 
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd 
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd ">
+    <github:config name="Github" user="evangelina" password="mulesoft1" doc:name="Github"/>
+    <jira:config name="Jira" username="federico.recio" password="123" address="http://localhost:8080/rpc/soap/jirasoapservice-v2" doc:name="Jira"/>
+    <flow name="Github2Jira" doc:name="Github2Jira">
+        <poll frequency="2000000">
+            <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
         </poll>
-        <logger message="New issues: #[payload]" level="WARN"/>
-        <collection-splitter/>
-        <logger message="Title: #[groovy:payload.getTitle()]" level="WARN"/>
-
-        <logger message="Custom fields id: #[payload]" level="WARN"/>
-        <enricher target="#[variable:issues]">
-            <jira:get-issues-from-jql-search
-                    jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()]"
-                    maxNumResults="1000"/>
+        <logger message="Retrieved issues: #[payload]" level="WARN" doc:name="Logger"/>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <enricher target="#[variable:matchingJiraIssues]" doc:name="Message Enricher">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()]" maxNumResults="1000" doc:name="Jira"/>
         </enricher>
-
-        <logger message="Issues: #[payload]" level="WARN"/>
-
-        <choice>
-            <when evaluator="groovy" expression="variable:issues.isEmpty()">
-                <logger message="Inserting issue" level="WARN"/>
-                <jira:create-issue summary="#[groovy:payload.getTitle()]" project="HACKATHON" type="1"
-                                   description="#[groovy:payload.getBody()]">
-                    <jira:custom-fields>
-                        <jira:custom-field key="customfield_10000">#[groovy:payload.getNumber()]</jira:custom-field>
-                    </jira:custom-fields>
-                </jira:create-issue>
+        <choice doc:name="Choice">
+            <when expression="message.getInvocationProperty('matchingJiraIssues').isEmpty()" evaluator="groovy">
+                <processor-chain>
+                    <logger message="Creating Jira issue for GitHub issue ##[groovy:payload.getNumber()]..." level="WARN" doc:name="Logger"/>
+                    <jira:create-issue-single-value-fields config-ref="Jira" summary="#[groovy:payload.getTitle()]" description="#[groovy:payload.getBody()]" project="HACKATHON" type="1" doc:name="Jira">
+                        <jira:custom-fields>
+                            <jira:custom-field key="customfield_10000">#[groovy:payload.getNumber()]</jira:custom-field>
+                        </jira:custom-fields>
+                    </jira:create-issue-single-value-fields>
+                    <logger message="Created Jira isse #[groovy:payload.getKey()] " level="INFO" doc:name="Logger"/>
+                </processor-chain>
             </when>
+            <otherwise>
+                <processor-chain>
+                    <logger level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
         </choice>
     </flow>
-
-    <flow name="Jira2GitHub">
-        <poll frequency="5000">
-            <jira:get-issues-from-jql-search jqlSearch="project = 'HACKATHON' AND GitHubIssue = 0"
-                                             maxNumResults="1000"/>
+    <flow name="Jira2GitHub" doc:name="Jira2GitHub">
+        <poll frequency="20000">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null" maxNumResults="1000" doc:name="Jira"/>
         </poll>
-        <collection-splitter />
-        <github:create-issue repository="github-connector" title="#[groovy:payload.getSummary()]" body="#[groovy:payload.getDescription()]" />
-        <logger message="New GitHub issue created: #[payload]" />
-        <jira:update-issue issueKey="TODO: recuperar issue key">
+        <collection-splitter doc:name="Collection Splitter"/>
+        <message-properties-transformer scope="invocation" doc:name="Message Properties">
+            <add-message-property key="jiraIssueKey" value="#[groovy:payload.getKey()]"/>
+        </message-properties-transformer>
+        <github:create-issue config-ref="Github" body="#[groovy:payload.getDescription()]" repository="github-connector" title="#[groovy:payload.getSummary()]" doc:name="Github"/>
+        <logger message="New GitHub issue created: #[payload]" level="WARN" doc:name="Logger"/>
+        <jira:update-issue-single-value-fields config-ref="Jira" issueKey="#[variable:jiraIssueKey]" doc:name="Jira">
             <jira:fields>
                 <jira:field key="customfield_10000">#[groovy:payload.getNumber()]</jira:field>
             </jira:fields>
-        </jira:update-issue>
+        </jira:update-issue-single-value-fields>
     </flow>
 </mule>
