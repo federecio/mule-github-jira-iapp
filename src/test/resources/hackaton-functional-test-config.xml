@@ -8,85 +8,86 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
 http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd ">
     <github:config name="Github" user="evangelina" password="mulesoft1" doc:name="Github"/>
-    <jira:config name="Jira" username="federico.recio" password="123" address="http://localhost:8080/rpc/soap/jirasoapservice-v2" doc:name="Jira"/>
-    <flow name="Issues-Github2Jira" doc:name="Issues-Github2Jira">
-        <poll frequency="20000">
-            <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
-        </poll>
-        <collection-splitter doc:name="Collection Splitter"/>
-        <enricher target="#[variable:matchingJiraIssues]" doc:name="Message Enricher">
-            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()]" maxNumResults="1000" doc:name="Jira"/>
-        </enricher>
-        <choice doc:name="Choice">
-            <when expression="message.getInvocationProperty('matchingJiraIssues').isEmpty()" evaluator="groovy">
-                <processor-chain>
-                    <message-properties-transformer scope="invocation" doc:name="Message Properties">
-                        <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
-                    </message-properties-transformer>
-                    <jira:create-issue-single-value-fields config-ref="Jira" summary="#[groovy:payload.getTitle()]" description="#[groovy:payload.getBody()]" project="HACKATHON" type="1" doc:name="Jira">
-                        <jira:custom-fields>
-                            <jira:custom-field key="customfield_10000">#[groovy:payload.getNumber()]</jira:custom-field>
-                        </jira:custom-fields>
-                    </jira:create-issue-single-value-fields>
-                    <logger message="Github ##[groovy:message.getInvocationProperty('githubIssueNumber')] -&gt; Jira #[groovy:payload.getKey()] " level="INFO" doc:name="Logger"/>
-                </processor-chain>
-            </when>
-            <otherwise>
-                <processor-chain>
-                    <logger message="No new updates in GitHub" level="DEBUG" doc:name="Logger"/>
-                </processor-chain>
-            </otherwise>
-        </choice>
-    </flow>
-    <flow name="Issues-Jira2GitHub" doc:name="Issues-Jira2GitHub">
-        <poll frequency="20000">
-            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null" maxNumResults="1000" doc:name="Jira"/>
-        </poll>
-        <collection-splitter doc:name="Collection Splitter"/>
-        <message-properties-transformer scope="invocation" doc:name="Message Properties">
-            <add-message-property key="jiraIssueKey" value="#[groovy:payload.getKey()]"/>
-        </message-properties-transformer>
-        <github:create-issue config-ref="Github" body="#[groovy:payload.getDescription()]" repository="github-connector" title="#[groovy:payload.getSummary()]" doc:name="Github"/>
-        <message-properties-transformer scope="invocation" doc:name="Message Properties">
-            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
-        </message-properties-transformer>
-        <jira:update-issue-single-value-fields config-ref="Jira" issueKey="#[groovy:message.getInvocationProperty('jiraIssueKey')]" doc:name="Jira">
-            <jira:fields>
-                <jira:field key="customfield_10000">#[groovy:payload.getNumber()]</jira:field>
-            </jira:fields>
-        </jira:update-issue-single-value-fields>
-        <logger message="Jira #[groovy:message.getInvocationProperty('jiraIssueKey')] -&gt; GitHub issue ##[groovy:message.getInvocationProperty('githubIssueNumber')]" level="INFO" doc:name="Logger"/>
-    </flow>
-    <flow name="Comments-GitHub2Jira" doc:name="Comments-GitHub2Jira">
-        <poll frequency="20000">
-            <github:get-issues-creted-after config-ref="Github" repository="github-connector" minutes="1" doc:name="Github"/>
-        </poll>
-        <collection-splitter doc:name="Collection Splitter"/>
-        <message-properties-transformer scope="invocation" doc:name="Message Properties">
-            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
-        </message-properties-transformer>
-        <github:get-comments config-ref="Github" issueId="#[groovy:payload.getNumber()]" repository="github-connector" doc:name="Github"/>
-        <collection-splitter doc:name="Collection Splitter"/>
-        <choice doc:name="Choice">
-            <when expression="!payload.getBody().endsWith('synchronized by Jira2Github iApp')" evaluator="groovy">
-                <processor-chain>
-                    <message-properties-transformer scope="invocation" doc:name="Message Properties">
-                        <add-message-property key="commentBody" value="#[groovy:payload.getBody()]"/>
-                        <add-message-property key="commentId" value="#[groovy:payload.getId()]"/>
-                    </message-properties-transformer>
-                    <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:message.getInvocationProperty('githubIssueNumber')]" maxNumResults="1000" doc:name="Jira"/>
-                    <collection-splitter doc:name="Collection Splitter"/>
-                    <jira:add-comment config-ref="Jira" commentAuthor="federico.recio" commentBody="Comment from GitHub: #[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp" issueKey="#[groovy:payload.getKey()]" doc:name="Jira"/>
-                    <github:edit-comment repository="github-connector" commentId="#[groovy:message.getInvocationProperty('commentId')]" body="#[groovy:message.getInvocationProperty('commentBody')]  / synchronized by Jira2Github iApp" />
-                </processor-chain>
-            </when>
-            <otherwise>
-                <processor-chain>
-                    <logger message="No new comments in GitHub" level="DEBUG" doc:name="Logger"/>
-                </processor-chain>
-            </otherwise>
-        </choice>
-    </flow>
+    <jira:config name="Jira" username="evangelina" password="pepe44" address="http://localhost:8080/rpc/soap/jirasoapservice-v2" doc:name="Jira"/>
+    <!--<flow name="Issues-Github2Jira" doc:name="Issues-Github2Jira">-->
+        <!--<poll frequency="20000">-->
+            <!--<github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>-->
+        <!--</poll>-->
+        <!--<collection-splitter doc:name="Collection Splitter"/>-->
+        <!--<enricher target="#[variable:matchingJiraIssues]" doc:name="Message Enricher">-->
+            <!--<jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()]" maxNumResults="1000" doc:name="Jira"/>-->
+        <!--</enricher>-->
+        <!--<choice doc:name="Choice">-->
+            <!--<when expression="message.getInvocationProperty('matchingJiraIssues').isEmpty()" evaluator="groovy">-->
+                <!--<processor-chain>-->
+                    <!--<message-properties-transformer scope="invocation" doc:name="Message Properties">-->
+                        <!--<add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>-->
+                    <!--</message-properties-transformer>-->
+                    <!--<jira:create-issue-single-value-fields config-ref="Jira" summary="#[groovy:payload.getTitle()]" description="#[groovy:payload.getBody()]" project="HACKATHON" type="1" doc:name="Jira">-->
+                        <!--<jira:custom-fields>-->
+                            <!--<jira:custom-field key="customfield_10000">#[groovy:payload.getNumber()]</jira:custom-field>-->
+                        <!--</jira:custom-fields>-->
+                    <!--</jira:create-issue-single-value-fields>-->
+                    <!--<logger message="Github ##[groovy:message.getInvocationProperty('githubIssueNumber')] -&gt; Jira #[groovy:payload.getKey()] " level="INFO" doc:name="Logger"/>-->
+                <!--</processor-chain>-->
+            <!--</when>-->
+            <!--<otherwise>-->
+                <!--<processor-chain>-->
+                    <!--<logger message="No new updates in GitHub" level="DEBUG" doc:name="Logger"/>-->
+                <!--</processor-chain>-->
+            <!--</otherwise>-->
+        <!--</choice>-->
+    <!--</flow>-->
+
+    <!--<flow name="Issues-Jira2GitHub" doc:name="Issues-Jira2GitHub">-->
+        <!--<poll frequency="20000">-->
+            <!--<jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null" maxNumResults="1000" doc:name="Jira"/>-->
+        <!--</poll>-->
+        <!--<collection-splitter doc:name="Collection Splitter"/>-->
+        <!--<message-properties-transformer scope="invocation" doc:name="Message Properties">-->
+            <!--<add-message-property key="jiraIssueKey" value="#[groovy:payload.getKey()]"/>-->
+        <!--</message-properties-transformer>-->
+        <!--<github:create-issue config-ref="Github" body="#[groovy:payload.getDescription()]" repository="github-connector" title="#[groovy:payload.getSummary()]" doc:name="Github"/>-->
+        <!--<message-properties-transformer scope="invocation" doc:name="Message Properties">-->
+            <!--<add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>-->
+        <!--</message-properties-transformer>-->
+        <!--<jira:update-issue-single-value-fields config-ref="Jira" issueKey="#[groovy:message.getInvocationProperty('jiraIssueKey')]" doc:name="Jira">-->
+            <!--<jira:fields>-->
+                <!--<jira:field key="customfield_10000">#[groovy:payload.getNumber()]</jira:field>-->
+            <!--</jira:fields>-->
+        <!--</jira:update-issue-single-value-fields>-->
+        <!--<logger message="Jira #[groovy:message.getInvocationProperty('jiraIssueKey')] -&gt; GitHub issue ##[groovy:message.getInvocationProperty('githubIssueNumber')]" level="INFO" doc:name="Logger"/>-->
+    <!--</flow>-->
+    <!--<flow name="Comments-GitHub2Jira" doc:name="Comments-GitHub2Jira">-->
+        <!--<poll frequency="20000">-->
+            <!--<github:get-issues-creted-after config-ref="Github" repository="github-connector" minutes="1" doc:name="Github"/>-->
+        <!--</poll>-->
+        <!--<collection-splitter doc:name="Collection Splitter"/>-->
+        <!--<message-properties-transformer scope="invocation" doc:name="Message Properties">-->
+            <!--<add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>-->
+        <!--</message-properties-transformer>-->
+        <!--<github:get-comments config-ref="Github" issueId="#[groovy:payload.getNumber()]" repository="github-connector" doc:name="Github"/>-->
+        <!--<collection-splitter doc:name="Collection Splitter"/>-->
+        <!--<choice doc:name="Choice">-->
+            <!--<when expression="!payload.getBody().endsWith('synchronized by Jira2Github iApp')" evaluator="groovy">-->
+                <!--<processor-chain>-->
+                    <!--<message-properties-transformer scope="invocation" doc:name="Message Properties">-->
+                        <!--<add-message-property key="commentBody" value="#[groovy:payload.getBody()]"/>-->
+                        <!--<add-message-property key="commentId" value="#[groovy:payload.getId()]"/>-->
+                    <!--</message-properties-transformer>-->
+                    <!--<jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:message.getInvocationProperty('githubIssueNumber')]" maxNumResults="1000" doc:name="Jira"/>-->
+                    <!--<collection-splitter doc:name="Collection Splitter"/>-->
+                    <!--<jira:add-comment config-ref="Jira" commentAuthor="federico.recio" commentBody="Comment from GitHub: #[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp" issueKey="#[groovy:payload.getKey()]" doc:name="Jira"/>-->
+                    <!--<github:edit-comment repository="github-connector" commentId="#[groovy:message.getInvocationProperty('commentId')]" body="#[groovy:message.getInvocationProperty('commentBody')]  / synchronized by Jira2Github iApp" />-->
+                <!--</processor-chain>-->
+            <!--</when>-->
+            <!--<otherwise>-->
+                <!--<processor-chain>-->
+                    <!--<logger message="No new comments in GitHub" level="DEBUG" doc:name="Logger"/>-->
+                <!--</processor-chain>-->
+            <!--</otherwise>-->
+        <!--</choice>-->
+    <!--</flow>-->
 
     <flow name="Comments-Jira2GitHub" doc:name="Comments-Jira2GitHub">
         <poll frequency="10000">
@@ -99,18 +100,22 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         <jira:get-comments config-ref="Jira" issueKey="#[groovy:payload.getKey()]"/>
         <collection-splitter doc:name="Collection Splitter"/>
         <choice doc:name="Choice">
-            <when expression="payload.getCreated().getTime().after(new java.util.Date(System.currentTimeMillis() - 10 * 1000 * 60))" evaluator="groovy">
+            <when expression="!payload.getBody().endsWith('synchronized by Jira2Github iApp')" evaluator="groovy">
                 <processor-chain>
                     <message-properties-transformer scope="invocation" doc:name="Message Properties">
                         <add-message-property key="commentBody" value="#[groovy:payload.getBody()]"/>
+                        <add-message-property key="commentId" value="#[groovy:payload.getId()]"/>
                     </message-properties-transformer>
 
                     <github:get-issue issueId="#[groovy:message.getInvocationProperty('githubIssueNumber')]"
                                       config-ref="Github" repository="github-connector"/>
 
                     <github:create-comment user="evangelina" config-ref="Github" issueId="#[groovy:payload.getNumber()]"
-                                           comment="#[groovy:message.getInvocationProperty('commentBody')]"
+                                           comment="Comment from Github: #[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp"
                                            repository="github-connector"/>
+
+                    <!--<jira:edit-comment config-ref="Jira" commentAuthor="evangelina" commentBody="#[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp"-->
+                                       <!--commentId="#[groovy:message.getInvocationProperty('commentId')]" doc:name="Jira"/>-->
                 </processor-chain>
             </when>
             <otherwise>
