@@ -40,7 +40,7 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
     </flow>
     <flow name="Issues-Jira2GitHub" doc:name="Issues-Jira2GitHub">
         <poll frequency="20000">
-            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null" maxNumResults="1000" doc:name="Jira"/>
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null AND status = 'open'" maxNumResults="1000" doc:name="Jira"/>
         </poll>
         <collection-splitter doc:name="Collection Splitter"/>
         <message-properties-transformer scope="invocation" doc:name="Message Properties">
@@ -88,7 +88,7 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         </choice>
     </flow>
     <flow name="Comments-Jira2GitHub" doc:name="Comments-Jira2GitHub">
-        <poll frequency="10000">
+        <poll frequency="20000">
             <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON'" maxNumResults="1000" doc:name="Jira"/>
         </poll>
         <collection-splitter doc:name="Collection Splitter"/>
@@ -117,23 +117,46 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
         </choice>
     </flow>
     <flow name="IssueStatus-GitHub2Jira" doc:name="IssueStatus-GitHub2Jira">
-        <poll frequency="1000">
+        <poll frequency="20000">
             <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github">
                 <github:filter-data>
                     <github:filter-datum key="state">closed</github:filter-datum>
                 </github:filter-data>
             </github:get-issues>
         </poll>
-        <collection-splitter doc:name="Collection Splitter" />
+        <collection-splitter doc:name="Collection Splitter"/>
         <enricher target="#[variable:matchingJiraIssues]" doc:name="Message Enricher">
             <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()] AND status ='open'" maxNumResults="1000" doc:name="Jira"/>
         </enricher>
-        <choice>
+        <choice doc:name="Choice">
             <when expression="!message.getInvocationProperty('matchingJiraIssues').isEmpty()" evaluator="groovy">
-		        <jira:progress-workflow-action-single-value-fields config-ref="Jira" actionIdString="5" issueKey="#[groovy:message.getInvocationProperty('matchingJiraIssues').get(0).getKey()]" doc:name="Jira"/>
+                <processor-chain>
+                    <jira:progress-workflow-action-single-value-fields config-ref="Jira" actionIdString="5" issueKey="#[groovy:message.getInvocationProperty('matchingJiraIssues').get(0).getKey()]" doc:name="Jira"/>
+                </processor-chain>
             </when>
             <otherwise>
-            	<logger level="DEBUG" message="" />
+                <processor-chain>
+                    <logger level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="IssueStatus-Jira2GitHub" doc:name="IssueStatus-Jira2GitHub">
+        <poll frequency="20000">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue != null AND status ='resolved'" maxNumResults="1000" doc:name="Jira"/>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <github:get-issue config-ref="Github" issueId="#[groovy:payload.getCustomFieldValues()[0].getValues()[0]]" repository="github-connector" doc:name="Github"/>
+        <choice doc:name="Choice">
+            <when expression="!payload.getState().equals('closed')" evaluator="groovy">
+                <processor-chain>
+                    <github:close-issue config-ref="Github" issueId="#[groovy:payload.getNumber()]" repository="github-connector" doc:name="Github"/>
+                </processor-chain>
+            </when>
+            <otherwise>
+                <processor-chain>
+                    <logger level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
             </otherwise>
         </choice>
     </flow>
