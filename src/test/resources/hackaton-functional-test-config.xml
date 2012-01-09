@@ -114,8 +114,8 @@ http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/
                                            comment="Comment from Github: #[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp"
                                            repository="github-connector"/>
 
-                    <!--<jira:edit-comment config-ref="Jira" commentAuthor="evangelina" commentBody="#[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp"-->
-                                       <!--commentId="#[groovy:message.getInvocationProperty('commentId')]" doc:name="Jira"/>-->
+                    <jira:edit-comment commentId="#[groovy:message.getInvocationProperty('commentId')]" body="#[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp"
+                                       updateAuthor="evangelina"/>
                 </processor-chain>
             </when>
             <otherwise>
