@@ -1,46 +1,167 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mule xmlns="http://www.mulesoft.org/schema/mule/core"
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xmlns:spring="http://www.springframework.org/schema/beans"
-      xmlns:file="http://www.mulesoft.org/schema/mule/file"
-      xmlns:http="http://www.mulesoft.org/schema/mule/http"
-      xmlns:jdbc="http://www.mulesoft.org/schema/mule/jdbc"
-      xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
-      xmlns:client="http://www.mulesoft.org/schema/mule/client"
-      xmlns:cxf="http://www.mulesoft.org/schema/mule/cxf"
-      xmlns:management="http://www.mulesoft.org/schema/mule/management"
-      xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
-      xmlns:sxc="http://www.mulesoft.org/schema/mule/sxc"
-      xmlns:mule-xml="http://www.mulesoft.org/schema/mule/xml"
-      xmlns:github="http://www.mulesoft.org/schema/mule/github"
-      xmlns:jira="http://www.mulesoft.org/schema/mule/jira"
-      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/3.2/mule.xsd
-        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/3.2/mule-http.xsd
 
-        http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/3.2/mule-vm.xsd
-        http://www.mulesoft.org/schema/mule/client http://www.mulesoft.org/schema/mule/client/3.2/mule-client.xsd
-        http://www.mulesoft.org/schema/mule/cxf http://www.mulesoft.org/schema/mule/cxf/3.2/mule-cxf.xsd
-        http://www.mulesoft.org/schema/mule/management http://www.mulesoft.org/schema/mule/management/3.2/mule-management.xsd
-        http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/3.2/mule-scripting.xsd
-        http://www.mulesoft.org/schema/mule/sxc http://www.mulesoft.org/schema/mule/sxc/3.2/mule-sxc.xsd
-        http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/3.2/mule-xml.xsd
-        http://www.mulesoft.org/schema/mule/github http://www.mulesoft.org/schema/mule/github/1.0/mule-github.xsd
-        http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jira/1.0/mule-jira.xsd
-        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
-
-    <description>
-    
-    </description>
-
-    <github:config defaultUser="evangelina"/>
-    <jira:config username="federico.recio" password="123" address="localhost"/>
-
-    <flow name="main">
-        <poll frequency="5000"/>
-        <github:get-issues-creted-after repository="github-connector" minutes="5"/>
-        <logger message="#[payload]"/>
-        <collection-splitter/>
-        <jira:create-issue summary="#[payload.title]" project="hackathon" type="bug" description="#[payload.body]"/>
-        <logger message="#[payload]"/>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:twilio="http://www.mulesoft.org/schema/mule/twilio" xmlns:github="http://www.mulesoft.org/schema/mule/github" xmlns:jira="http://www.mulesoft.org/schema/mule/jira" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="CE-3.2.1" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/twilio http://www.mulesoft.org/schema/mule/twilio/1.0/mule-twilio.xsd 
+http://www.mulesoft.org/schema/mule/github http://www.mulesoft.org/schema/mule/github/1.0/mule-github.xsd 
+http://www.mulesoft.org/schema/mule/jira http://www.mulesoft.org/schema/mule/jira/2.0/mule-jira.xsd 
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd 
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd ">
+    <github:config name="Github" user="evangelina" password="xxx" doc:name="Github"/>
+    <jira:config name="Jira" username="federico.recio" password="xxx" address="http://localhost:8080/rpc/soap/jirasoapservice-v2" doc:name="Jira"/>
+    <twilio:config name="Twilio" accountSid="xxx" authToken="xxx" doc:name="Twilio"/>
+    <flow name="Issues-Github2Jira" doc:name="Issues-Github2Jira">
+        <poll frequency="20000">
+            <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <enricher target="#[variable:matchingJiraIssues]" doc:name="Message Enricher">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()]" maxNumResults="1000" doc:name="Jira"/>
+        </enricher>
+        <choice doc:name="Choice">
+            <when expression="message.getInvocationProperty('matchingJiraIssues').isEmpty()" evaluator="groovy">
+                <processor-chain>
+                    <message-properties-transformer scope="invocation"  doc:name="Message Properties">
+                        <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
+                    </message-properties-transformer>
+                    <jira:create-issue-single-value-fields config-ref="Jira" summary="#[groovy:payload.getTitle()]" description="#[groovy:payload.getBody()]" project="HACKATHON" type="1" doc:name="Jira">
+                        <jira:custom-fields>
+                            <jira:custom-field key="customfield_10000">#[groovy:payload.getNumber()]</jira:custom-field>
+                        </jira:custom-fields>
+                    </jira:create-issue-single-value-fields>
+                    <logger message="Github ##[groovy:message.getInvocationProperty('githubIssueNumber')] -&gt; Jira #[groovy:payload.getKey()] " level="INFO" doc:name="Logger"/>
+                    <twilio:send-sms-message config-ref="Twilio" body="New issue: Github ##[groovy:message.getInvocationProperty('githubIssueNumber')] -&gt; Jira #[groovy:payload.getKey()] -&gt; Summary: #[groovy:payload.getSummary()]" from="4154948002" to="4154948002" doc:name="Twilio"/>
+                </processor-chain>
+            </when>
+            <otherwise>
+                <processor-chain>
+                    <logger message="No new updates in GitHub" level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="Issues-Jira2GitHub" doc:name="Issues-Jira2GitHub">
+        <poll frequency="20000">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = null AND status = 'open'" maxNumResults="1000" doc:name="Jira"/>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <message-properties-transformer  scope="invocation"  doc:name="Message Properties">
+            <add-message-property key="jiraIssueKey" value="#[groovy:payload.getKey()]"/>
+        </message-properties-transformer>
+        <github:create-issue config-ref="Github" body="#[groovy:payload.getDescription()]" repository="github-connector" title="#[groovy:payload.getSummary()]" doc:name="Github"/>
+        <message-properties-transformer scope="invocation" doc:name="Message Properties">
+            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
+        </message-properties-transformer>
+        <jira:update-issue-single-value-fields config-ref="Jira" issueKey="#[groovy:message.getInvocationProperty('jiraIssueKey')]" doc:name="Jira">
+            <jira:fields>
+                <jira:field key="customfield_10000">#[groovy:payload.getNumber()]</jira:field>
+            </jira:fields>
+        </jira:update-issue-single-value-fields>
+        <logger message="Jira #[groovy:message.getInvocationProperty('jiraIssueKey')] -&gt; GitHub issue ##[groovy:message.getInvocationProperty('githubIssueNumber')] -&gt; Summary: #[groovy:payload.getSummary()]" level="INFO" doc:name="Logger"/>
+        <twilio:send-sms-message config-ref="Twilio" body="New issue: Jira #[groovy:message.getInvocationProperty('jiraIssueKey')] -&gt; GitHub issue ##[groovy:message.getInvocationProperty('githubIssueNumber')]  -&gt; Summary: #[groovy:payload.getSummary()]" from="4154948002" to="4154948002" doc:name="Twilio"/>
+    </flow>
+    <flow name="Comments-GitHub2Jira" doc:name="Comments-GitHub2Jira">
+        <poll frequency="20000">
+            <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github"/>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <message-properties-transformer scope="invocation" doc:name="Message Properties">
+            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getNumber()]"/>
+        </message-properties-transformer>
+        <github:get-comments config-ref="Github" issueId="#[groovy:payload.getNumber()]" repository="github-connector" doc:name="Github"/>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <choice doc:name="Choice">
+            <when expression="!payload.getBody().endsWith('synchronized by Jira2Github iApp')" evaluator="groovy">
+                <processor-chain>
+                    <message-properties-transformer scope="invocation" doc:name="Message Properties">
+                        <add-message-property key="commentBody" value="#[groovy:payload.getBody()]"/>
+                        <add-message-property key="commentId" value="#[groovy:payload.getId()]"/>
+                    </message-properties-transformer>
+                    <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:message.getInvocationProperty('githubIssueNumber')]" maxNumResults="1000" doc:name="Jira"/>
+                    <collection-splitter doc:name="Collection Splitter"/>
+                    <jira:add-comment config-ref="Jira" commentAuthor="federico.recio" commentBody="Comment from GitHub: #[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp" issueKey="#[groovy:payload.getKey()]" doc:name="Jira"/>
+                    <github:edit-comment config-ref="Github" repository="github-connector" commentId="#[groovy:message.getInvocationProperty('commentId')]" body="#[groovy:message.getInvocationProperty('commentBody')]  / synchronized by Jira2Github iApp" doc:name="Github"/>
+                </processor-chain>
+            </when>
+            <otherwise>
+                <processor-chain>
+                    <logger message="No new comments in GitHub" level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="Comments-Jira2GitHub" doc:name="Comments-Jira2GitHub">
+        <poll frequency="20000">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON'" maxNumResults="1000" doc:name="Jira"/>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <message-properties-transformer scope="invocation" doc:name="Message Properties">
+            <add-message-property key="githubIssueNumber" value="#[groovy:payload.getCustomFieldValues()[0].getValues()[0]]"/>
+        </message-properties-transformer>
+        <jira:get-comments config-ref="Jira" issueKey="#[groovy:payload.getKey()]" doc:name="Jira"/>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <choice doc:name="Choice">
+            <when expression="!payload.getBody().endsWith('synchronized by Jira2Github iApp')" evaluator="groovy">
+                <processor-chain>
+                    <message-properties-transformer scope="invocation" doc:name="Message Properties">
+                        <add-message-property key="commentBody" value="#[groovy:payload.getBody()]"/>
+                        <add-message-property key="commentId" value="#[groovy:payload.getId()]"/>
+                    </message-properties-transformer>
+                    <github:get-issue config-ref="Github" issueId="#[groovy:message.getInvocationProperty('githubIssueNumber')]" repository="github-connector" doc:name="Github"/>
+                    <github:create-comment config-ref="Github" comment="Comment from Jira: #[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp" issueId="#[groovy:payload.getNumber()]" repository="github-connector" user="evangelina" doc:name="Github"/>
+                    <jira:edit-comment config-ref="Jira" commentId="#[groovy:message.getInvocationProperty('commentId')]" body="#[groovy:message.getInvocationProperty('commentBody')] / synchronized by Jira2Github iApp" updateAuthor="evangelina" doc:name="Jira"/>
+                </processor-chain>
+            </when>
+            <otherwise>
+                <processor-chain>
+                    <logger message="No new comments in GitHub" level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="IssueStatus-GitHub2Jira" doc:name="IssueStatus-GitHub2Jira">
+        <poll frequency="20000">
+            <github:get-issues config-ref="Github" repository="github-connector" doc:name="Github">
+                <github:filter-data>
+                    <github:filter-datum key="state">closed</github:filter-datum>
+                </github:filter-data>
+            </github:get-issues>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <enricher target="#[variable:matchingJiraIssues]" doc:name="Message Enricher">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue = #[groovy:payload.getNumber()] AND status ='open'" maxNumResults="1000" doc:name="Jira"/>
+        </enricher>
+        <choice doc:name="Choice">
+            <when expression="!message.getInvocationProperty('matchingJiraIssues').isEmpty()" evaluator="groovy">
+                <processor-chain>
+                    <jira:progress-workflow-action-single-value-fields config-ref="Jira" actionIdString="5" issueKey="#[groovy:message.getInvocationProperty('matchingJiraIssues').get(0).getKey()]" doc:name="Jira"/>
+                </processor-chain>
+            </when>
+            <otherwise>
+                <processor-chain>
+                    <logger level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="IssueStatus-Jira2GitHub" doc:name="IssueStatus-Jira2GitHub">
+        <poll frequency="20000">
+            <jira:get-issues-from-jql-search config-ref="Jira" jqlSearch="project = 'HACKATHON' AND GitHubIssue != null AND status ='resolved'" maxNumResults="1000" doc:name="Jira"/>
+        </poll>
+        <collection-splitter doc:name="Collection Splitter"/>
+        <github:get-issue config-ref="Github" issueId="#[groovy:payload.getCustomFieldValues()[0].getValues()[0]]" repository="github-connector" doc:name="Github"/>
+        <choice doc:name="Choice">
+            <when expression="!payload.getState().equals('closed')" evaluator="groovy">
+                <processor-chain>
+                    <github:close-issue config-ref="Github" issueId="#[groovy:payload.getNumber()]" repository="github-connector" doc:name="Github"/>
+                </processor-chain>
+            </when>
+            <otherwise>
+                <processor-chain>
+                    <logger level="DEBUG" doc:name="Logger"/>
+                </processor-chain>
+            </otherwise>
+        </choice>
     </flow>
 </mule>
